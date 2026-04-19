@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a5de094a5a0dbe54eb53e8a04b0df979, type: 3}
+  m_Name: Active_EvolutionLight
+  m_EditorClassIdentifier: 
+  skillName: "\uC9C4\uD654\uC758 \uBE5B"
+  description: "\uC6B0\uC8FC \uC804\uC5ED\uC5D0 \uBE5B\uC774 \uB4E4\uC5B4\uC635\uB2C8\uB2E4.
+    \uC5B4\uB77C? \uC6B0\uC8FC\uC120\uC758 \uC0C1\uD0DC\uAC00..!"
+  unlockCost: 100
+  refillCost: 10
