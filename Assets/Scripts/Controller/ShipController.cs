@@ -9,6 +9,12 @@ public class ShipController : MonoBehaviour
 {
     private const float STOPPED_VELOCITY_THRESHOLD = 0.1f;
 
+    public bool IsMerged { get; private set; } = false;
+    public bool IsLaunched { get; private set; } = false;
+
+    // 경계 밖인지 여부 (GameManager가 체크할 용도)
+    public bool IsStoped => rb.linearVelocity.sqrMagnitude < STOPPED_VELOCITY_THRESHOLD;
+
     [SerializeField] private ShipData myData;
 
     [Header("Out of Bounds Warning")]
@@ -16,13 +22,34 @@ public class ShipController : MonoBehaviour
     [SerializeField] private TextMeshPro warningText;
     [SerializeField] private PolygonCollider2D polygonCollider;
 
-    private bool isOutOfBounds = false;
-
     private Rigidbody2D rb;
     private SpriteRenderer spriteRenderer;
     private Coroutine warningCoroutine;
-    private bool isMerged = false;
-    private bool isLaunched = false;
+
+    // 행성이 합쳐진다
+    // => 행성이 합쳐 지면 => 행성의 크기가 커지게 되고
+    // => 행성의 크기가 거지면서 Box 범위 밖으로 나가게 되면 게임 종료 처리
+
+    // Ship Controller는 행성을 컨트롤 하는 객체
+    // Ship Controller가 게임의 종료를 처리하는 거는
+    // SOLID : 
+    // 단일 책임 원칙 : Ship Controller는 행성을 컨트롤 하는 객체지
+    // 게임의 종료 처리를 담당하는 거는 이중 책임으로 단일 책임 원칙에 위반된다
+    // 행성이 합쳐
+    // 게임 종료 처리 
+    // 1, 단일 행성(지구)이 반동으로 인해서 Box 밖으로 이동한 경우
+    // 2, 행성들이 합쳐지고 새로운 큰 행성이 만들어 졌을 때 => 행성이 다 합쳐지고 나서 종료 조건을 체크
+
+    // Ship Controller
+    // 주변에 같은 행성이 있으면 합쳐진다.
+    // UniverseBoundary 범위 안에 들어왔는지, 나갔는지를 체크한다.
+
+    // GameManager
+    // 1, ShipManager 클래스에서 모든 행성들을 가져온다.
+    // 2, 행성중에서  Box 밖으로 이동한 행성이 있는지를 체크한다.
+    // 2-1, 만약 합쳐지고 있는 과정의 행성이 있으면 생략한다. 
+    // 3, 행성중에서 Box 밖으로 이동한 행성이 있으면 게임 Over 처리를 한다.
+    // => UniverseBoundary Box 범위 안에서 영역체크를 해서 얼만큼 겹쳐져 있는지를 확인하는 코드
 
     void Awake()
     {
@@ -51,60 +78,66 @@ public class ShipController : MonoBehaviour
             warningText.transform.localPosition = Vector3.up * halfHeight;
         }
 
-        isLaunched = true;
+        IsLaunched = false;
 
-        if (warningCoroutine != null) StopCoroutine(warningCoroutine);
-        warningCoroutine = StartCoroutine(OutBoundsWarningRoutine());
+        //if (warningCoroutine != null) StopCoroutine(warningCoroutine);
+        //warningCoroutine = StartCoroutine(OutBoundsWarningRoutine());
+    }
+
+    public void InitializeMergedShip()
+    {
+        IsLaunched = true;
     }
 
     public void SetReadyState()
     {
         rb.bodyType = RigidbodyType2D.Kinematic;
         rb.linearVelocity = Vector2.zero;
-        isLaunched = false;
+        IsLaunched = false;
     }
 
     public void Launch(Vector2 direction, float force, float multiplier)
     {
         rb.bodyType = RigidbodyType2D.Dynamic;
         rb.AddForce(direction * force * multiplier, ForceMode2D.Impulse);
-        isLaunched = true;
+        IsLaunched = true;
 
-        if (warningCoroutine != null) StopCoroutine(warningCoroutine);
-        warningCoroutine = StartCoroutine(OutBoundsWarningRoutine());
+        //if (warningCoroutine != null) StopCoroutine(warningCoroutine);
+        //warningCoroutine = StartCoroutine(OutBoundsWarningRoutine());
     }
 
-    private void OnTriggerExit2D(Collider2D other)
-    {
-        if (!gameObject.activeInHierarchy || isMerged) return;
-        if (other.CompareTag("UniverseBoundary") && rb.bodyType == RigidbodyType2D.Dynamic)
-            isOutOfBounds = true;
-    }
+    //private void OnTriggerExit2D(Collider2D other)
+    //{
+    //    if (other.CompareTag("UniverseBoundary") && rb.bodyType == RigidbodyType2D.Dynamic)
+    //    {
+    //        IsOutOfBounds = true;
+    //    }
+    //}
 
-    private void OnTriggerEnter2D(Collider2D other)
-    {
-        if (other.CompareTag("UniverseBoundary"))
-        {
-            isOutOfBounds = false;
-            if (warningText != null) warningText.gameObject.SetActive(false);
-        }
-    }
+    //private void OnTriggerEnter2D(Collider2D other)
+    //{
+    //    if (other.CompareTag("UniverseBoundary"))
+    //    {
+    //        IsOutOfBounds = false;
+    //        if (warningText != null) warningText.gameObject.SetActive(false);
+    //    }
+    //}
 
     private void OnCollisionEnter2D(Collision2D other)
     {
-        if (!isLaunched) return;
+        if (!IsLaunched) return;
 
         if (!other.gameObject.TryGetComponent(out ShipController otherShip)) return;
 
-        if (!otherShip.isLaunched) return;
+        if (!otherShip.IsLaunched) return;
 
         // isMerged 플래그로만 판별 — Unity는 싱글스레드이므로 같은 프레임에서
         // 먼저 실행된 쪽이 두 플래그를 모두 true로 세팅하면, 나중에 실행되는
         // 상대방의 OnCollisionEnter2D는 조건을 통과하지 못해 중복 합성이 방지됩니다.
-        if (myData.level == otherShip.myData.level && !isMerged && !otherShip.isMerged)
+        if (myData.level == otherShip.myData.level && !IsMerged && !otherShip.IsMerged)
         {
-            isMerged = true;
-            otherShip.isMerged = true;
+            IsMerged = true;
+            otherShip.IsMerged = true;
 
             Vector2 spawnPosition = (transform.position + otherShip.transform.position) / 2f;
             ShipManager.Instance.MergeShips(spawnPosition, myData.level);
@@ -132,51 +165,52 @@ public class ShipController : MonoBehaviour
 
     private void OnDestroy()
     {
+        ShipManager.Instance.RemoveShip(this);
         if (warningCoroutine != null) StopCoroutine(warningCoroutine);
     }
 
-    private System.Collections.IEnumerator OutBoundsWarningRoutine()
-    {
-        while (!isMerged)
-        {
-            // 1. 우주선이 멈출 때까지 대기
-            yield return new WaitUntil(() =>
-                rb.linearVelocity.sqrMagnitude < STOPPED_VELOCITY_THRESHOLD || isMerged);
+    //private System.Collections.IEnumerator OutBoundsWarningRoutine()
+    //{
+    //    while (!isMerged)
+    //    {
+    //        // 1. 우주선이 멈출 때까지 대기
+    //        yield return new WaitUntil(() =>
+    //            rb.linearVelocity.sqrMagnitude < STOPPED_VELOCITY_THRESHOLD || isMerged);
 
-            if (isMerged) yield break;
+    //        if (isMerged) yield break;
 
-            // 2. 멈췄을 때 경계 밖이면 타이머 시작
-            if (isOutOfBounds)
-            {
-                if (warningText != null) warningText.gameObject.SetActive(true);
+    //        // 2. 멈췄을 때 경계 밖이면 타이머 시작
+    //        if (isOutOfBounds)
+    //        {
+    //            if (warningText != null) warningText.gameObject.SetActive(true);
 
-                float timer = maxWarningTime;
-                while (timer > 0 && isOutOfBounds && !isMerged)
-                {
-                    timer -= Time.deltaTime;
-                    if (warningText != null)
-                    {
-                        warningText.text = timer.ToString("F1");
-                        warningText.color = Color.red;
-                    }
-                    yield return null;
-                }
+    //            float timer = maxWarningTime;
+    //            while (timer > 0 && isOutOfBounds && !isMerged)
+    //            {
+    //                timer -= Time.deltaTime;
+    //                if (warningText != null)
+    //                {
+    //                    warningText.text = timer.ToString("F1");
+    //                    warningText.color = Color.red;
+    //                }
+    //                yield return null;
+    //            }
 
-                if (isMerged) yield break;
+    //            if (isMerged) yield break;
 
-                if (isOutOfBounds)
-                {
-                    GameManager.Instance.ChangeState(GameState.GameOver);
-                    Destroy(gameObject);
-                    yield break;
-                }
+    //            if (isOutOfBounds)
+    //            {
+    //                GameManager.Instance.ChangeState(GameState.GameOver);
+    //                Destroy(gameObject);
+    //                yield break;
+    //            }
 
-                if (warningText != null) warningText.gameObject.SetActive(false);
-            }
+    //            if (warningText != null) warningText.gameObject.SetActive(false);
+    //        }
 
-            // 3. 다시 움직일 때까지 대기 후 반복
-            yield return new WaitUntil(() =>
-                rb.linearVelocity.sqrMagnitude >= STOPPED_VELOCITY_THRESHOLD || isMerged);
-        }
-    }
+    //        // 3. 다시 움직일 때까지 대기 후 반복
+    //        yield return new WaitUntil(() =>
+    //            rb.linearVelocity.sqrMagnitude >= STOPPED_VELOCITY_THRESHOLD || isMerged);
+    //    }
+    //}
 }
