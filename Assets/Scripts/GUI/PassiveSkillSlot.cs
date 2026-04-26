@@ -68,6 +68,10 @@ public class PassiveSkillSlot : MonoBehaviour
         if (UpgradeManager.Instance.TrySpendPoints(cost))
         {
             UpgradeManager.Instance.UpgradePassive(skillId);
+
+            if (skillId == "Universe" && UniverseManager.Instance != null)
+                UniverseManager.Instance.ApplyUniverseSize();
+
             shopManager.UpdateAllShopUI();
         }
     }

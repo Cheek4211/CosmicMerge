@@ -10,10 +10,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 04f2b1627f1ac1c46b1bf526384b7742, type: 3}
-  m_Name: ShipData_02
+  m_Name: ShipData_08
   m_EditorClassIdentifier: 
-  shipName: level_02
-  level: 2
-  shipSprite: {fileID: 486106114939064918, guid: 03347e0fcba46c84b8066c5fd6c010f9, type: 3}
-  scale: 1
-  scoreOnMerge: 30
+  shipName: level_08
+  level: 8
+  shipSprite: {fileID: -6227571165450745772, guid: 379a0a57f8825104eac5d10b65f57b5d, type: 3}
+  scale: 5
+  scoreOnMerge: 1400

@@ -3,12 +3,11 @@ using TMPro;
 
 public class ScoreManager : MonoBehaviour
 {
-    // 외부에서는 읽을 수만 있고, 덮어쓸 수는 없는 안전한 싱글톤 프로퍼티
     public static ScoreManager Instance { get; private set; }
 
     [Header("Score Settings")]
     [SerializeField] public int currentScore = 0;
-    [SerializeField] private int scoreToPointRatio = 100;
+    [SerializeField] private int scoreToPointRatio = 200;
 
     [Header("UI References")]
     [SerializeField] private TextMeshProUGUI scoreText;
@@ -43,7 +42,6 @@ public class ScoreManager : MonoBehaviour
             ResetScore();
     }
 
-    // 우주선이 융합할 때 외부(ShipManager)에서 호출할 함수
     public void AddScore(int amount)
     {
         currentScore += amount;
@@ -54,7 +52,7 @@ public class ScoreManager : MonoBehaviour
     {
         if (scoreText != null)
         {
-            scoreText.text = $"점수: {currentScore}";
+            scoreText.text = $"{currentScore}";
         }
     }
     public void ResetScore()
@@ -63,18 +61,14 @@ public class ScoreManager : MonoBehaviour
         UpdateScoreUI();
     }
 
-    // 우주선이 경계선을 벗어나 타이머가 0이 되었을 때 호출할 게임 오버 함수
     public void HandleGameOver()
     {
-        // int earnedPoints = currentScore / scoreToPointRatio;
+        int earnedPoints = currentScore / scoreToPointRatio;
 
-        // if (UpgradeManager.Instance != null)
-        // {
-        //     UpgradeManager.Instance.totalPoints += earnedPoints;
-        //     UpgradeManager.Instance.SaveData();
-            
-        //     Debug.Log($"gameOver! Score: {currentScore} / Point: {earnedPoints} / all Point: {UpgradeManager.Instance.totalPoints}");
-        // }
-
+        if (UpgradeManager.Instance != null)
+        {
+            UpgradeManager.Instance.AddPoints(earnedPoints);
+            Debug.Log($"GameOver! Score: {currentScore} / Earned: {earnedPoints}P / Total: {UpgradeManager.Instance.TotalPoints}P");
+        }
     }
 }

@@ -6,23 +6,14 @@ public class UniverseManager : MonoBehaviour
 
     [Header("Environment References")]
     [SerializeField] private Camera mainCamera;
-    [SerializeField] private Transform leftWall;
-    [SerializeField] private Transform rightWall;
-    [SerializeField] private Transform upWall;
+    [SerializeField] private Transform wallsParent;
+    [SerializeField] private Transform player;
 
     [Header("Expansion Settings (Per Level)")]
-    [SerializeField] private float widthExpansion = 1.0f;
-    [SerializeField] private float heightExpansion = 1.0f;
     [SerializeField] private float cameraSizeExpansion = 1.5f;
 
-    private Vector3 initialLeftPos;
-    private Vector3 initialRightPos;
-    private Vector3 initialUpPos;
     private float initialCameraSize;
-
-    private BoxCollider2D safeZoneCollider;
-    private Vector2 initialSafeZoneSize;
-    private Vector2 initialSafeZoneOffset;
+    private Vector3 initialPlayerPos;
 
     private void Awake()
     {
@@ -31,18 +22,8 @@ public class UniverseManager : MonoBehaviour
 
         if (mainCamera == null) mainCamera = Camera.main;
 
-        safeZoneCollider = GetComponent<BoxCollider2D>();
-
-        initialLeftPos = leftWall.position;
-        initialRightPos = rightWall.position;
-        initialUpPos = upWall.position;
         initialCameraSize = mainCamera.orthographicSize;
-
-        if (safeZoneCollider != null)
-        {
-            initialSafeZoneSize = safeZoneCollider.size;
-            initialSafeZoneOffset = safeZoneCollider.offset;
-        }
+        initialPlayerPos  = player.position;
     }
 
     private void Start()
@@ -53,24 +34,22 @@ public class UniverseManager : MonoBehaviour
     public void ApplyUniverseSize()
     {
         int level = UpgradeManager.Instance.UniverseSizeLevel;
-        int expansionMultiplier = level - 1; 
+        float scale = (initialCameraSize + cameraSizeExpansion * (level - 1)) / initialCameraSize;
 
-        leftWall.position = initialLeftPos + (Vector3.left * widthExpansion * expansionMultiplier);
-        rightWall.position = initialRightPos + (Vector3.right * widthExpansion * expansionMultiplier);
-        upWall.position = initialUpPos + (Vector3.up * heightExpansion * expansionMultiplier);
+        mainCamera.orthographicSize = initialCameraSize * scale;
+        wallsParent.localScale      = Vector3.one * scale;
+        player.position             = initialPlayerPos * scale;
+    }
 
-        mainCamera.orthographicSize = initialCameraSize + (cameraSizeExpansion * expansionMultiplier);
-
-        if (safeZoneCollider != null)
+#if UNITY_EDITOR
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.U))
         {
-            float newWidth = initialSafeZoneSize.x + (widthExpansion * expansionMultiplier * 2f);
-            
-            float newHeight = initialSafeZoneSize.y + (heightExpansion * expansionMultiplier);
-
-            safeZoneCollider.size = new Vector2(newWidth, newHeight);
-
-            float newOffsetY = initialSafeZoneOffset.y + (heightExpansion * expansionMultiplier * 0.5f);
-            safeZoneCollider.offset = new Vector2(initialSafeZoneOffset.x, newOffsetY);
+            UpgradeManager.Instance.UpgradePassive("Universe");
+            ApplyUniverseSize();
+            Debug.Log($"[TEST] UniverseSize Lv.{UpgradeManager.Instance.UniverseSizeLevel}");
         }
     }
+#endif
 }

@@ -15,5 +15,5 @@ MonoBehaviour:
   skillName: "\uC9C4\uD654\uC758 \uBE5B"
   description: "\uC6B0\uC8FC \uC804\uC5ED\uC5D0 \uBE5B\uC774 \uB4E4\uC5B4\uC635\uB2C8\uB2E4.
     \uC5B4\uB77C? \uC6B0\uC8FC\uC120\uC758 \uC0C1\uD0DC\uAC00..!"
-  unlockCost: 100
-  refillCost: 10
+  unlockCost: 30
+  refillCost: 5

@@ -17,5 +17,5 @@ MonoBehaviour:
     \uCEE4\uC9D1\uB2C8\uB2E4. \uC6B0\uC8FC\uC120\uC744 \uB354 \uB9CE\uC774 \uB0A0\uB9B4
     \uC218 \uC788\uC2B5\uB2C8\uB2E4!"
   maxLevel: 5
-  baseCost: 1
-  costMultiplier: 2
+  baseCost: 3
+  costMultiplier: 3

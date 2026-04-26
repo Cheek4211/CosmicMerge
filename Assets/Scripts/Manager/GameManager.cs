@@ -25,6 +25,7 @@ public class GameManager : MonoBehaviour
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            SceneManager.sceneLoaded += OnSceneLoaded;
         }
         else
         {
@@ -32,9 +33,26 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    private void OnDestroy()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        if (scene.name == gameSceneName)
+            ChangeState(GameState.Playing);
+        else if (scene.name == titleSceneName)
+            ChangeState(GameState.MainMenu);
+    }
+
     private void Start()
     {
-        ChangeState(GameState.MainMenu);
+        string currentScene = SceneManager.GetActiveScene().name;
+        if (currentScene == gameSceneName)
+            ChangeState(GameState.Playing);
+        else
+            ChangeState(GameState.MainMenu);
     }
 
     public void ChangeState(GameState newState)
@@ -46,6 +64,7 @@ public class GameManager : MonoBehaviour
         if (newState == GameState.GameOver)
         {
             if (ScoreManager.Instance != null) ScoreManager.Instance.HandleGameOver();
+            Debug.Log($"[GameOver] Loading scene: '{titleSceneName}'");
             SceneManager.LoadScene(titleSceneName);
         }
 
@@ -54,10 +73,7 @@ public class GameManager : MonoBehaviour
 
     public void StartNewGame()
     {
-        currentState = GameState.Playing;
-        Time.timeScale = 1f;
         SceneManager.LoadScene(gameSceneName);
-        OnStateChanged?.Invoke(GameState.Playing);
     }
 
     public void ReturnToMainMenu()

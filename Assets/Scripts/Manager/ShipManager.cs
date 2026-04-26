@@ -11,8 +11,10 @@ public class ShipManager : MonoBehaviour
     [SerializeField] private ShipData[] shipDatabase;
 
     [Header("Explosion Settings")]
-    [SerializeField] private float explosionRadius = 2.5f;
-    [SerializeField] private float explosionForce = 15f;
+    [SerializeField] private float explosionRadius = 1.5f;
+    [SerializeField] private float explosionRadiusPerLevel = 0.1f;
+    [SerializeField] private float explosionForce = 4f;
+    [SerializeField] private float explosionForcePerLevel = 0.5f;
 
     void Awake()
     {
@@ -53,9 +55,11 @@ public class ShipManager : MonoBehaviour
         int earnedScore = shipDatabase[currentLevel - 1].scoreOnMerge;
         ScoreManager.Instance.AddScore(earnedScore);
 
-        SpawnShip(position, currentLevel);
+        float leveledRadius = explosionRadius + (currentLevel - 1) * explosionRadiusPerLevel;
+        float leveledForce = explosionForce + (currentLevel - 1) * explosionForcePerLevel;
+        ApplyExplosionForce2D(position, leveledRadius, leveledForce);
 
-        ApplyExplosionForce2D(position, explosionRadius, explosionForce);
+        SpawnShip(position, currentLevel);
     }
 
     // 2D 전용 폭발 물리 공식 직접 구현
@@ -81,7 +85,7 @@ public class ShipManager : MonoBehaviour
                 // 3. 거리에 따른 힘 감쇠(Attenuation) 계산
                 // 폭발 중심에 가까울수록(distance가 0에 가까울수록) 1에 가까운 힘을 받고,
                 // 가장자리에 있을수록 0에 가까운 힘을 받도록 선형 보간합니다.
-                float forceMultiplier = 1f - (distance / radius);
+                float forceMultiplier = Mathf.Max(0f, 1f - (distance / radius));
 
                 // 4. 정규화된 방향(방향만 남김) * 설정한 폭발력 * 거리에 따른 비율
                 rb.AddForce(direction.normalized * force * forceMultiplier, ForceMode2D.Impulse);

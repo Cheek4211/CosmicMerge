@@ -14,6 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   shipName: level_05
   level: 5
-  shipSprite: {fileID: 21300000, guid: 849894ee6c373dc4abf0cccb74ae7215, type: 3}
-  scale: 0.5
-  scoreOnMerge: 0
+  shipSprite: {fileID: -903964008691501107, guid: 43b245c7bd54b344caa99a396efa88c9, type: 3}
+  scale: 3.5
+  scoreOnMerge: 300

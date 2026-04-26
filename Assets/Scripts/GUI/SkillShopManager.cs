@@ -25,7 +25,7 @@ public class SkillShopManager : MonoBehaviour
         activeTabBtn.onClick.AddListener(ShowActiveTab);
     }
 
-    private void OnEnable()
+    private void Start()
     {
         ShowPassiveTab();
     }

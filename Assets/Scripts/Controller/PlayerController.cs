@@ -99,16 +99,17 @@ public class PlayerController : MonoBehaviour
 
         if (dragVector.sqrMagnitude < MIN_DRAG_THRESHOLD)
         {
-            finalDirection = Vector2.up;
+            finalDirection = Vector2.left;
             finalForce = 0f;
             return;
         }
 
-        float angle = Vector2.SignedAngle(Vector2.up, dragVector);
+        float angle = Vector2.SignedAngle(Vector2.left, dragVector);
         float clampedAngle = Mathf.Clamp(angle, -maxAngleLimit, maxAngleLimit);
 
-        finalDirection = Quaternion.Euler(0, 0, clampedAngle) * Vector2.up;
-        finalForce = Mathf.Clamp(dragVector.magnitude, 0, maxPullDistance);
+        finalDirection = Quaternion.Euler(0, 0, clampedAngle) * Vector2.left;
+        float effectiveMaxPull = maxPullDistance * (1f + (UpgradeManager.Instance.EnginePowerLevel - 1) * 0.85f);
+        finalForce = Mathf.Clamp(dragVector.magnitude, 0, effectiveMaxPull);
 
         if (currentShip != null)
         {
@@ -134,7 +135,7 @@ public class PlayerController : MonoBehaviour
 
     private void ReloadShip()
     {
-        Vector2 spawnPos = (Vector2)spawnPoint.position + (Vector2.up * orbitRadius);
+        Vector2 spawnPos = (Vector2)spawnPoint.position + (Vector2.left * orbitRadius);
         int randomDropLevel = ShipManager.Instance.GetRandomSpawnLevelIndex();
         currentShip = ShipManager.Instance.SpawnShip(spawnPos, randomDropLevel);
 
