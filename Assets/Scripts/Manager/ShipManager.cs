@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class ShipManager : MonoBehaviour
@@ -10,11 +11,16 @@ public class ShipManager : MonoBehaviour
     [Header("Ship Database")]
     [SerializeField] private ShipData[] shipDatabase;
 
+
     [Header("Explosion Settings")]
     [SerializeField] private float explosionRadius = 1.5f;
     [SerializeField] private float explosionRadiusPerLevel = 0.1f;
     [SerializeField] private float explosionForce = 4f;
     [SerializeField] private float explosionForcePerLevel = 0.5f;
+
+    // 현재 게임 필드에 존재하는 모든 우주선(행성) 리스트
+    private HashSet<ShipController> activeShips = new HashSet<ShipController>();
+    public HashSet<ShipController> ActiveShips => activeShips;
 
     void Awake()
     {
@@ -32,15 +38,14 @@ public class ShipManager : MonoBehaviour
     }
 
     public ShipController SpawnShip(Vector2 position, int levelIndex)
-    {
-        
+    {        
         if (levelIndex >= shipDatabase.Length) return null;
 
         GameObject newShipObj = Instantiate(baseShipPrefab, position, Quaternion.identity);
         ShipController shipController = newShipObj.GetComponent<ShipController>();
 
         shipController.Initialize(shipDatabase[levelIndex]);
-
+        activeShips.Add(shipController);
         return shipController;
     }
 
@@ -59,8 +64,16 @@ public class ShipManager : MonoBehaviour
         float leveledForce = explosionForce + (currentLevel - 1) * explosionForcePerLevel;
         ApplyExplosionForce2D(position, leveledRadius, leveledForce);
 
-        SpawnShip(position, currentLevel);
+        var ship = SpawnShip(position, currentLevel);
+        ship.InitializeMergedShip();
     }
+
+    public void RemoveShip(ShipController ship)
+    {
+        if (activeShips.Contains(ship))
+            activeShips.Remove(ship);
+    }
+
 
     // 2D 전용 폭발 물리 공식 직접 구현
     private void ApplyExplosionForce2D(Vector2 explosionCenter, float radius, float force)

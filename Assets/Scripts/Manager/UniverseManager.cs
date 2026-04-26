@@ -1,8 +1,11 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 public class UniverseManager : MonoBehaviour
 {
     public static UniverseManager Instance { get; private set; }
+
+    public HashSet<ShipController> InsideShips { get; private set; } = new HashSet<ShipController>();
 
     [Header("Environment References")]
     [SerializeField] private Camera mainCamera;
@@ -22,6 +25,8 @@ public class UniverseManager : MonoBehaviour
 
         if (mainCamera == null) mainCamera = Camera.main;
 
+        InsideShips = new HashSet<ShipController>(); // HashSet √ ±‚»≠
+
         initialCameraSize = mainCamera.orthographicSize;
         initialPlayerPos  = player.position;
     }
@@ -39,6 +44,21 @@ public class UniverseManager : MonoBehaviour
         mainCamera.orthographicSize = initialCameraSize * scale;
         wallsParent.localScale      = Vector3.one * scale;
         player.position             = initialPlayerPos * scale;
+    }
+    public void OnTriggerEnter2D(Collider2D collision)
+    {
+        if (collision.TryGetComponent(out ShipController ship))
+        {
+            InsideShips.Add(ship);
+        }
+    }
+
+    public void OnTriggerExit2D(Collider2D collision)
+    {
+        if (collision.TryGetComponent(out ShipController ship))
+        {
+            InsideShips.Remove(ship);
+        }
     }
 
 #if UNITY_EDITOR
