@@ -26,20 +26,14 @@ public class ScoreManager : MonoBehaviour
 
     private void Start()
     {
-        GameManager.Instance.OnStateChanged += OnStateChanged;
+        GameManager.Instance.OnNewGameStarted += ResetScore;
         UpdateScoreUI();
     }
 
     private void OnDestroy()
     {
         if (GameManager.Instance != null)
-            GameManager.Instance.OnStateChanged -= OnStateChanged;
-    }
-
-    private void OnStateChanged(GameState state)
-    {
-        if (state == GameState.Playing)
-            ResetScore();
+            GameManager.Instance.OnNewGameStarted -= ResetScore;
     }
 
     public void AddScore(int amount)

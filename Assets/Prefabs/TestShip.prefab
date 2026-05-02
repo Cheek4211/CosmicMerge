@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 6326363444865751761}
   - component: {fileID: 399771828994910252}
   - component: {fileID: 7855228198478285364}
-  - component: {fileID: 6210716227355779975}
+  - component: {fileID: 8000300763462517852}
   m_Layer: 0
   m_Name: TestShip
   m_TagString: Untagged
@@ -104,9 +104,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   myData: {fileID: 0}
-  maxWarningTime: 3
+  softRepelStrength: 20
+  outOfBoundsLimit: 3
+  circleCollider: {fileID: 0}
   warningText: {fileID: 3507899997091690055}
-  polygonCollider: {fileID: 6210716227355779975}
 --- !u!50 &7855228198478285364
 Rigidbody2D:
   serializedVersion: 5
@@ -134,8 +135,8 @@ Rigidbody2D:
   m_SleepingMode: 1
   m_CollisionDetection: 1
   m_Constraints: 0
---- !u!60 &6210716227355779975
-PolygonCollider2D:
+--- !u!58 &8000300763462517852
+CircleCollider2D:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -169,21 +170,7 @@ PolygonCollider2D:
   m_CompositeOperation: 0
   m_CompositeOrder: 0
   m_Offset: {x: 0, y: 0}
-  m_SpriteTilingProperty:
-    border: {x: 0, y: 0, z: 0, w: 0}
-    pivot: {x: 0.5, y: 0.28866667}
-    oldSize: {x: 1, y: 1}
-    newSize: {x: 1, y: 1}
-    adaptiveTilingThreshold: 0.5
-    drawMode: 0
-    adaptiveTiling: 0
-  m_AutoTiling: 0
-  m_Points:
-    m_Paths:
-    - - {x: 0, y: 0.5773587}
-      - {x: -0.5, y: -0.28866667}
-      - {x: 0.5, y: -0.28866667}
-  m_UseDelaunayMesh: 0
+  m_Radius: 1
 --- !u!1 &6402438891024535058
 GameObject:
   m_ObjectHideFlags: 0

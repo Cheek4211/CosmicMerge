@@ -1,182 +1,288 @@
 using UnityEngine;
+using System.Collections;
 using TMPro;
-using System.Collections.Generic;
 
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(SpriteRenderer))]
-
 public class ShipController : MonoBehaviour
 {
     private const float STOPPED_VELOCITY_THRESHOLD = 0.1f;
 
+    public bool IsMerged      { get; private set; } = false;
+    public bool IsLaunched    { get; private set; } = false;
+    public bool IsInsideBounds { get; private set; } = true;
+    public bool IsStopped     => rb.linearVelocity.sqrMagnitude < STOPPED_VELOCITY_THRESHOLD * STOPPED_VELOCITY_THRESHOLD;
+    public bool IsPhysicsActive => rb != null && rb.bodyType == RigidbodyType2D.Dynamic;
+
     [SerializeField] private ShipData myData;
+    [SerializeField] private float softRepelStrength = 10f;
+    [SerializeField] private float outOfBoundsLimit = 3f;
 
-    [Header("Out of Bounds Warning")]
-    [SerializeField] private float maxWarningTime = 3f;
+    [SerializeField] private CircleCollider2D circleCollider;
     [SerializeField] private TextMeshPro warningText;
-    [SerializeField] private PolygonCollider2D polygonCollider;
 
-    private bool isOutOfBounds = false;
+    public float ShipRadius { get; private set; }
 
     private Rigidbody2D rb;
     private SpriteRenderer spriteRenderer;
-    private Coroutine warningCoroutine;
-    private bool isMerged = false;
-    private bool isLaunched = false;
+    private Coroutine squishCoroutine;
+    private Coroutine outOfBoundsCoroutine;
+    private Vector3 baseScale;
+    private Collider2D boundaryCollider;
 
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
         spriteRenderer = GetComponent<SpriteRenderer>();
-        if (warningText != null) warningText.gameObject.SetActive(false);
 
-        var mat = new PhysicsMaterial2D { friction = 0f, bounciness = 0.05f };
+        rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
+
+        var mat = new PhysicsMaterial2D { friction = 0f, bounciness = 0f };
         foreach (var col in GetComponents<Collider2D>())
             col.sharedMaterial = mat;
+
+        var boundaryObj = GameObject.FindGameObjectWithTag("UniverseBoundary");
+        if (boundaryObj != null)
+            boundaryCollider = boundaryObj.GetComponent<Collider2D>();
     }
 
     public void Initialize(ShipData data)
     {
         myData = data;
         if (data.shipSprite != null)
-        {
             spriteRenderer.sprite = data.shipSprite;
-            UpdatePolygonCollider(data.shipSprite);
-        }
+
         transform.localScale = Vector3.one * data.scale;
+        baseScale = transform.localScale;
+
+        ShipRadius = data.shipSprite != null
+            ? data.shipSprite.bounds.extents.x * data.scale
+            : data.scale * 0.5f;
+
+        if (circleCollider != null)
+            circleCollider.radius = ShipRadius / data.scale;
+
+        transform.localScale = Vector3.zero;
 
         if (warningText != null)
         {
-            float halfHeight = spriteRenderer.sprite.bounds.extents.y;
+            float halfHeight = data.shipSprite != null ? data.shipSprite.bounds.extents.y * data.scale : data.scale * 0.5f;
             warningText.transform.localPosition = Vector3.up * halfHeight;
+            warningText.gameObject.SetActive(false);
         }
 
-        isLaunched = true;
+        IsLaunched = true;
 
-        if (warningCoroutine != null) StopCoroutine(warningCoroutine);
-        warningCoroutine = StartCoroutine(OutBoundsWarningRoutine());
+        if (circleCollider != null)
+            ShipManager.Instance.RegisterShipCollider(circleCollider);
+
+        if (squishCoroutine != null) StopCoroutine(squishCoroutine);
+        squishCoroutine = StartCoroutine(SpawnPopRoutine());
+
     }
 
     public void SetReadyState()
     {
         rb.bodyType = RigidbodyType2D.Kinematic;
         rb.linearVelocity = Vector2.zero;
-        isLaunched = false;
+        IsLaunched = false;
     }
 
     public void Launch(Vector2 direction, float force, float multiplier)
     {
         rb.bodyType = RigidbodyType2D.Dynamic;
         rb.AddForce(direction * force * multiplier, ForceMode2D.Impulse);
-        isLaunched = true;
+        IsLaunched = true;
 
-        if (warningCoroutine != null) StopCoroutine(warningCoroutine);
-        warningCoroutine = StartCoroutine(OutBoundsWarningRoutine());
+        if (squishCoroutine != null) StopCoroutine(squishCoroutine);
+        squishCoroutine = StartCoroutine(LaunchSquishRoutine());
     }
 
-    private void OnTriggerExit2D(Collider2D other)
+    public void PrepareForMerge()
     {
-        if (!gameObject.activeInHierarchy || isMerged) return;
-        if (other.CompareTag("UniverseBoundary") && rb.bodyType == RigidbodyType2D.Dynamic)
-            isOutOfBounds = true;
+        rb.linearVelocity = Vector2.zero;
+        rb.bodyType = RigidbodyType2D.Kinematic;
+
+        if (squishCoroutine != null)      { StopCoroutine(squishCoroutine);      squishCoroutine = null; }
+        if (outOfBoundsCoroutine != null) { StopCoroutine(outOfBoundsCoroutine); outOfBoundsCoroutine = null; }
+        if (warningText != null) warningText.gameObject.SetActive(false);
+        foreach (var col in GetComponents<Collider2D>())
+            col.enabled = false;
     }
 
-    private void OnTriggerEnter2D(Collider2D other)
+    void Update()
     {
-        if (other.CompareTag("UniverseBoundary"))
+        if (!IsLaunched || IsMerged) return;
+
+        IsInsideBounds = boundaryCollider == null || boundaryCollider.OverlapPoint(transform.position);
+
+        if (outOfBoundsCoroutine != null && IsInsideBounds)
         {
-            isOutOfBounds = false;
+            StopCoroutine(outOfBoundsCoroutine);
+            outOfBoundsCoroutine = null;
             if (warningText != null) warningText.gameObject.SetActive(false);
+        }
+
+        if (outOfBoundsCoroutine == null && IsStopped && !IsInsideBounds)
+            outOfBoundsCoroutine = StartCoroutine(OutOfBoundsTimerRoutine());
+    }
+
+    void FixedUpdate()
+    {
+        if (!IsLaunched || IsMerged || !IsPhysicsActive) return;
+
+        Collider2D[] nearby = Physics2D.OverlapCircleAll(transform.position, ShipRadius * 3f);
+        foreach (var col in nearby)
+        {
+            if (col.gameObject == gameObject) continue;
+            if (!col.TryGetComponent<ShipController>(out var other)) continue;
+            if (other.IsMerged || !other.IsLaunched || !other.IsPhysicsActive) continue;
+
+            Vector2 toMe = (Vector2)transform.position - (Vector2)other.transform.position;
+            float dist = toMe.magnitude;
+            float contactDist = ShipRadius + other.ShipRadius;
+
+            if (dist > contactDist || dist < 0.001f) continue;
+
+            if (myData.level == other.myData.level && !IsMerged && !other.IsMerged)
+            {
+                IsMerged = true;
+                other.IsMerged = true;
+
+                PrepareForMerge();
+                other.PrepareForMerge();
+
+                Vector2 spawnPos = ((Vector2)transform.position + (Vector2)other.transform.position) / 2f;
+                StartCoroutine(MergeAbsorbRoutine(other, spawnPos));
+                return;
+            }
+
+            if (myData.level != other.myData.level)
+            {
+                float overlap = contactDist - dist;
+                float forceMag = softRepelStrength * (overlap / contactDist);
+                rb.AddForce(toMe.normalized * (forceMag * rb.mass), ForceMode2D.Force);
+            }
         }
     }
 
     private void OnCollisionEnter2D(Collision2D other)
     {
-        if (!isLaunched) return;
-
-        if (!other.gameObject.TryGetComponent(out ShipController otherShip)) return;
-
-        if (!otherShip.isLaunched) return;
-
-        // isMerged 플래그로만 판별 — Unity는 싱글스레드이므로 같은 프레임에서
-        // 먼저 실행된 쪽이 두 플래그를 모두 true로 세팅하면, 나중에 실행되는
-        // 상대방의 OnCollisionEnter2D는 조건을 통과하지 못해 중복 합성이 방지됩니다.
-        if (myData.level == otherShip.myData.level && !isMerged && !otherShip.isMerged)
-        {
-            isMerged = true;
-            otherShip.isMerged = true;
-
-            Vector2 spawnPosition = (transform.position + otherShip.transform.position) / 2f;
-            ShipManager.Instance.MergeShips(spawnPosition, myData.level);
-
-            Destroy(gameObject);
-            Destroy(otherShip.gameObject);
-        }
+        if (!IsLaunched || IsMerged) return;
+        CancelWallBounce(other);
     }
 
-    private void UpdatePolygonCollider(Sprite newSprite)
+    private void OnCollisionStay2D(Collision2D other)
     {
-        if (polygonCollider == null) return;
+        if (!IsLaunched || IsMerged) return;
+        CancelWallBounce(other);
+    }
 
-        int shapeCount = newSprite.GetPhysicsShapeCount();
-        polygonCollider.pathCount = shapeCount;
+    private void CancelWallBounce(Collision2D other)
+    {
+        if (other.contactCount == 0) return;
+        Vector2 normal = other.contacts[0].normal;
+        float normalSpeed = Vector2.Dot(rb.linearVelocity, normal);
+        if (normalSpeed < 0f)
+            rb.linearVelocity -= normal * normalSpeed;
+    }
 
-        List<Vector2> path = new();
-
-        for (int i = 0; i < shapeCount; i++)
+    private IEnumerator SpawnPopRoutine()
+    {
+        float duration = 0.42f;
+        float t = 0f;
+        while (t < duration)
         {
-            newSprite.GetPhysicsShape(i, path);
-            polygonCollider.SetPath(i, path);
+            t += Time.deltaTime;
+            transform.localScale = baseScale * SpringScale(Mathf.Clamp01(t / duration));
+            yield return null;
         }
+        transform.localScale = baseScale;
+        squishCoroutine = null;
+    }
+
+    private IEnumerator LaunchSquishRoutine()
+    {
+        float duration = 0.28f;
+        float t = 0f;
+        while (t < duration)
+        {
+            t += Time.deltaTime;
+            float p = Mathf.Clamp01(t / duration);
+            transform.localScale = baseScale * (1f - Mathf.Sin(p * Mathf.PI) * 0.22f);
+            yield return null;
+        }
+        transform.localScale = baseScale;
+        squishCoroutine = null;
+    }
+
+    private IEnumerator MergeAbsorbRoutine(ShipController other, Vector2 target)
+    {
+        float duration = 0.2f;
+        float t = 0f;
+        Vector3 myStartPos    = transform.position;
+        Vector3 otherStartPos = other != null ? other.transform.position : (Vector3)(Vector2)target;
+        Vector3 myStartScale    = transform.localScale;
+        Vector3 otherStartScale = other != null ? other.transform.localScale : Vector3.zero;
+
+        while (t < duration)
+        {
+            t += Time.deltaTime;
+            float p = EaseInCubic(Mathf.Clamp01(t / duration));
+
+            transform.position   = Vector3.Lerp(myStartPos, target, p);
+            transform.localScale = Vector3.Lerp(myStartScale, Vector3.zero, p);
+
+            if (other != null && other.gameObject != null)
+            {
+                other.transform.position   = Vector3.Lerp(otherStartPos, target, p);
+                other.transform.localScale = Vector3.Lerp(otherStartScale, Vector3.zero, p);
+            }
+
+            yield return null;
+        }
+
+        ShipManager.Instance.MergeShips(target, myData.level);
+
+        if (other != null && other.gameObject != null) Destroy(other.gameObject);
+        Destroy(gameObject);
+    }
+
+    private float SpringScale(float t)
+    {
+        const float zeta = 0.38f;
+        const float omega = 14f;
+        float omegaD = omega * Mathf.Sqrt(1f - zeta * zeta);
+        return 1f - Mathf.Exp(-zeta * omega * t) * Mathf.Cos(omegaD * t);
+    }
+
+    private float EaseInCubic(float t) => t * t * t;
+
+    private IEnumerator OutOfBoundsTimerRoutine()
+    {
+        if (warningText != null)
+        {
+            warningText.gameObject.SetActive(true);
+            warningText.color = Color.red;
+        }
+
+        float timer = outOfBoundsLimit;
+        while (timer > 0f)
+        {
+            timer -= Time.deltaTime;
+            if (warningText != null)
+                warningText.text = Mathf.CeilToInt(timer).ToString();
+            yield return null;
+        }
+
+        if (warningText != null) warningText.gameObject.SetActive(false);
+        GameManager.Instance.ChangeState(GameState.GameOver);
     }
 
     private void OnDestroy()
     {
-        if (warningCoroutine != null) StopCoroutine(warningCoroutine);
-    }
-
-    private System.Collections.IEnumerator OutBoundsWarningRoutine()
-    {
-        while (!isMerged)
-        {
-            // 1. 우주선이 멈출 때까지 대기
-            yield return new WaitUntil(() =>
-                rb.linearVelocity.sqrMagnitude < STOPPED_VELOCITY_THRESHOLD || isMerged);
-
-            if (isMerged) yield break;
-
-            // 2. 멈췄을 때 경계 밖이면 타이머 시작
-            if (isOutOfBounds)
-            {
-                if (warningText != null) warningText.gameObject.SetActive(true);
-
-                float timer = maxWarningTime;
-                while (timer > 0 && isOutOfBounds && !isMerged)
-                {
-                    timer -= Time.deltaTime;
-                    if (warningText != null)
-                    {
-                        warningText.text = timer.ToString("F1");
-                        warningText.color = Color.red;
-                    }
-                    yield return null;
-                }
-
-                if (isMerged) yield break;
-
-                if (isOutOfBounds)
-                {
-                    GameManager.Instance.ChangeState(GameState.GameOver);
-                    Destroy(gameObject);
-                    yield break;
-                }
-
-                if (warningText != null) warningText.gameObject.SetActive(false);
-            }
-
-            // 3. 다시 움직일 때까지 대기 후 반복
-            yield return new WaitUntil(() =>
-                rb.linearVelocity.sqrMagnitude >= STOPPED_VELOCITY_THRESHOLD || isMerged);
-        }
+        if (squishCoroutine != null)      StopCoroutine(squishCoroutine);
+        if (outOfBoundsCoroutine != null) StopCoroutine(outOfBoundsCoroutine);
+        if (ShipManager.Instance != null) ShipManager.Instance.RemoveShip(this);
     }
 }

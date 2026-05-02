@@ -1,8 +1,11 @@
+using System;
 using UnityEngine;
 
 public class UpgradeManager : MonoBehaviour
 {
     public static UpgradeManager Instance { get; private set; }
+
+    public event Action OnUniverseLevelChanged;
 
     [Header("Currency (Debug View)")]
     [SerializeField] private int totalPoints = 0;
@@ -49,15 +52,29 @@ public class UpgradeManager : MonoBehaviour
         }
     }
 
+    private void Start()
+    {
+        GameManager.Instance.OnNewGameStarted += ResetPassiveLevels;
+    }
+
+    private void OnDestroy()
+    {
+        if (GameManager.Instance != null)
+            GameManager.Instance.OnNewGameStarted -= ResetPassiveLevels;
+    }
+
+    private void ResetPassiveLevels()
+    {
+        enginePowerLevel = 1;
+        universeSizeLevel = 1;
+        techLevel = 1;
+    }
+
     public void SaveData()
     {
         PlayerPrefs.SetInt("TotalPoints", totalPoints);
 
-        PlayerPrefs.SetInt("Passive_Engine", enginePowerLevel);
-        PlayerPrefs.SetInt("Passive_Universe", universeSizeLevel);
-        PlayerPrefs.SetInt("Passive_Tech", techLevel);
-
-        PlayerPrefs.SetInt("Active_CosmicWar_Unlock", isCosmicWarUnlocked ? 1 : 0); // bool은 1과 0으로 저장
+        PlayerPrefs.SetInt("Active_CosmicWar_Unlock", isCosmicWarUnlocked ? 1 : 0);
         PlayerPrefs.SetInt("Active_CosmicWar_Ammo", ammoCosmicWar);
 
         PlayerPrefs.SetInt("Active_Alien_Unlock", isAlienAbductionUnlocked ? 1 : 0);
@@ -72,10 +89,6 @@ public class UpgradeManager : MonoBehaviour
     private void LoadData()
     {
         totalPoints = PlayerPrefs.GetInt("TotalPoints", 0);
-
-        enginePowerLevel = PlayerPrefs.GetInt("Passive_Engine", 1);
-        universeSizeLevel = PlayerPrefs.GetInt("Passive_Universe", 1);
-        techLevel = PlayerPrefs.GetInt("Passive_Tech", 1);
 
         isCosmicWarUnlocked = PlayerPrefs.GetInt("Active_CosmicWar_Unlock", 0) == 1;
         ammoCosmicWar = PlayerPrefs.GetInt("Active_CosmicWar_Ammo", 0);
@@ -104,39 +117,35 @@ public class UpgradeManager : MonoBehaviour
         return false;
     }
 
-    public void UpgradePassive(string skillName)
+    public void UpgradePassive(PassiveSkillId skill)
     {
-        if (skillName == "Engine") enginePowerLevel++;
-        else if (skillName == "Universe") universeSizeLevel++;
-        else if (skillName == "Tech") techLevel++;
+        switch (skill)
+        {
+            case PassiveSkillId.Engine:   enginePowerLevel++;   break;
+            case PassiveSkillId.Universe: universeSizeLevel++;
+                OnUniverseLevelChanged?.Invoke();             break;
+            case PassiveSkillId.Tech:     techLevel++;          break;
+        }
+    }
+
+    public void PurchaseActive(ActiveSkillId skill, bool isFirstUnlock)
+    {
+        switch (skill)
+        {
+            case ActiveSkillId.CosmicWar:
+                if (isFirstUnlock) isCosmicWarUnlocked = true;
+                ammoCosmicWar = 1;
+                break;
+            case ActiveSkillId.Alien:
+                if (isFirstUnlock) isAlienAbductionUnlocked = true;
+                ammoAlienAbduction = 1;
+                break;
+            case ActiveSkillId.Evolution:
+                if (isFirstUnlock) isEvolutionLightUnlocked = true;
+                ammoEvolutionLight = 1;
+                break;
+        }
         SaveData();
     }
 
-    public void PurchaseActive(string skillName, bool isFirstUnlock)
-    {
-        if (skillName == "CosmicWar")
-        {
-            if (isFirstUnlock) isCosmicWarUnlocked = true;
-            ammoCosmicWar = 1; // 최대 1발 장전
-        }
-        else if (skillName == "Alien")
-        {
-            if (isFirstUnlock) isAlienAbductionUnlocked = true;
-            ammoAlienAbduction = 1;
-        }
-        else if (skillName == "Evolution")
-        {
-            if (isFirstUnlock) isEvolutionLightUnlocked = true;
-            ammoEvolutionLight = 1;
-        }
-        SaveData();
-    }
-
-    public void ConsumeActiveAmmo(string skillName)
-    {
-        if (skillName == "CosmicWar" && ammoCosmicWar > 0) ammoCosmicWar--;
-        else if (skillName == "Alien" && ammoAlienAbduction > 0) ammoAlienAbduction--;
-        else if (skillName == "Evolution" && ammoEvolutionLight > 0) ammoEvolutionLight--;
-        SaveData();
-    }
 }

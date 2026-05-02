@@ -4,20 +4,20 @@ using UnityEngine.SceneManagement;
 
 public enum GameState
 {
-    MainMenu, Shop, Playing, Paused, GameOver
+    MainMenu, Shop, Playing, MergeSettling, UpgradeSelection, Paused, GameOver
 }
 
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
 
-    [Header("Scene Names")]
-    [SerializeField] private string titleSceneName = "Title";
-    [SerializeField] private string gameSceneName = "Game";
+    private const string titleSceneName = "TitleScene";
+    private const string gameSceneName = "GameScene";
 
     public GameState currentState;
 
     public event Action<GameState> OnStateChanged;
+    public event Action OnNewGameStarted;
 
     private void Awake()
     {
@@ -38,12 +38,21 @@ public class GameManager : MonoBehaviour
         SceneManager.sceneLoaded -= OnSceneLoaded;
     }
 
+    private bool openShopOnTitleLoad = false;
+
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         if (scene.name == gameSceneName)
+        {
+            OnNewGameStarted?.Invoke();
             ChangeState(GameState.Playing);
+        }
         else if (scene.name == titleSceneName)
-            ChangeState(GameState.MainMenu);
+        {
+            GameState target = openShopOnTitleLoad ? GameState.Shop : GameState.MainMenu;
+            openShopOnTitleLoad = false;
+            ChangeState(target);
+        }
     }
 
     private void Start()
@@ -59,14 +68,10 @@ public class GameManager : MonoBehaviour
     {
         currentState = newState;
 
-        Time.timeScale = (newState == GameState.Paused) ? 0f : 1f;
+        Time.timeScale = (newState == GameState.Paused || newState == GameState.UpgradeSelection || newState == GameState.GameOver) ? 0f : 1f;
 
         if (newState == GameState.GameOver)
-        {
             if (ScoreManager.Instance != null) ScoreManager.Instance.HandleGameOver();
-            Debug.Log($"[GameOver] Loading scene: '{titleSceneName}'");
-            SceneManager.LoadScene(titleSceneName);
-        }
 
         OnStateChanged?.Invoke(newState);
     }
@@ -82,5 +87,12 @@ public class GameManager : MonoBehaviour
         currentState = GameState.MainMenu;
         SceneManager.LoadScene(titleSceneName);
         OnStateChanged?.Invoke(GameState.MainMenu);
+    }
+
+    public void ReturnToShop()
+    {
+        Time.timeScale = 1f;
+        openShopOnTitleLoad = true;
+        SceneManager.LoadScene(titleSceneName);
     }
 }

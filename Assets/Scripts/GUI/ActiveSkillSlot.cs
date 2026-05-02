@@ -5,30 +5,23 @@ using TMPro;
 public class ActiveSkillSlot : MonoBehaviour
 {
     [Header("Skill Settings")]
-    [SerializeField] private string skillId;
+    [SerializeField] private ActiveSkillId skillId;
     [SerializeField] private ActiveSkillData skillData;
     [SerializeField] private SkillShopManager shopManager;
 
     private TextMeshProUGUI nameText;
     private TextMeshProUGUI explainText;
     private TextMeshProUGUI levelText;
-    private Image skillImage;
-    private Button activeBtn;
     private Button levelUpBtn;
 
     private void Awake()
     {
-        nameText = transform.Find("SkillId").GetComponent<TextMeshProUGUI>();
-        //
-        levelText = transform.Find("SkillLevel").GetComponent<TextMeshProUGUI>();
-        skillImage = transform.Find("SkillImage").GetComponent<Image>();
+        nameText    = transform.Find("SkillId").GetComponent<TextMeshProUGUI>();
+        levelText   = transform.Find("SkillLevel").GetComponent<TextMeshProUGUI>();
         explainText = transform.Find("SkillExplain").GetComponent<TextMeshProUGUI>();
-        //activeBtn = transform.Find("Skillactive").GetComponent<Button>();
-        levelUpBtn = transform.Find("LevelUp").GetComponent<Button>();
+        levelUpBtn  = transform.Find("LevelUp").GetComponent<Button>();
 
         levelUpBtn.onClick.AddListener(OnClickBuy);
-        
-        // activeBtn.onClick.AddListener(OnUseSkill);
     }
 
     public void UpdateSlotUI()
@@ -72,29 +65,29 @@ public class ActiveSkillSlot : MonoBehaviour
         if (UpgradeManager.Instance.TrySpendPoints(cost))
         {
             UpgradeManager.Instance.PurchaseActive(skillId, !isUnlocked);
-            shopManager.UpdateAllShopUI();
+            shopManager?.UpdateShopUI();
         }
     }
 
     private bool GetIsUnlocked()
     {
-        switch(skillId)
+        switch (skillId)
         {
-            case "CosmicWar": return UpgradeManager.Instance.IsCosmicWarUnlocked;
-            case "Alien": return UpgradeManager.Instance.IsAlienAbductionUnlocked;
-            case "Evolution": return UpgradeManager.Instance.IsEvolutionLightUnlocked;
-            default: return false;
+            case ActiveSkillId.CosmicWar:  return UpgradeManager.Instance.IsCosmicWarUnlocked;
+            case ActiveSkillId.Alien:      return UpgradeManager.Instance.IsAlienAbductionUnlocked;
+            case ActiveSkillId.Evolution:  return UpgradeManager.Instance.IsEvolutionLightUnlocked;
+            default:                       return false;
         }
     }
 
     private int GetAmmo()
     {
-        switch(skillId)
+        switch (skillId)
         {
-            case "CosmicWar": return UpgradeManager.Instance.AmmoCosmicWar;
-            case "Alien": return UpgradeManager.Instance.AmmoAlienAbduction;
-            case "Evolution": return UpgradeManager.Instance.AmmoEvolutionLight;
-            default: return 0;
+            case ActiveSkillId.CosmicWar:  return UpgradeManager.Instance.AmmoCosmicWar;
+            case ActiveSkillId.Alien:      return UpgradeManager.Instance.AmmoAlienAbduction;
+            case ActiveSkillId.Evolution:  return UpgradeManager.Instance.AmmoEvolutionLight;
+            default:                       return 0;
         }
     }
 }

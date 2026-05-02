@@ -8,10 +8,10 @@ public class PlayerController : MonoBehaviour
     private const float RELOAD_DELAY = 0.5f;
 
     [Header("Launch Settings")]
-    [SerializeField] private float maxPullDistance = 5f;
+    [SerializeField] private float maxPullDistance = 3f;
     [Range(0, 90)]
     [SerializeField] private float maxAngleLimit = 80f;
-    [SerializeField] private float forceMultiplier = 10f;
+    [SerializeField] private float forceMultiplier = 12f;
     [SerializeField] private float orbitRadius = 1.5f;
 
     [Header("Prefabs & Visuals")]
@@ -29,6 +29,7 @@ public class PlayerController : MonoBehaviour
     private float finalForce;
 
     private ShipController currentShip;
+    private System.Collections.IEnumerator pendingReload;
 
     void Start()
     {
@@ -51,8 +52,15 @@ public class PlayerController : MonoBehaviour
 
     private void OnStateChanged(GameState state)
     {
-        if (state == GameState.Playing && currentShip == null)
+        if (state == GameState.UpgradeSelection || state == GameState.MergeSettling)
+        {
+            CancelPendingReload();
+        }
+        else if (state == GameState.Playing && currentShip == null)
+        {
+            CancelPendingReload();
             ReloadShip();
+        }
     }
 
     void Update()
@@ -62,6 +70,8 @@ public class PlayerController : MonoBehaviour
 
     private void HandleInput()
     {
+        if (GameManager.Instance.currentState != GameState.Playing) return;
+        
         if (Input.GetMouseButtonDown(0))
         {
             isDragging = true;
@@ -88,7 +98,8 @@ public class PlayerController : MonoBehaviour
 
                 currentShip = null;
 
-                StartCoroutine(ReloadShipDelayed());
+                pendingReload = ReloadShipDelayed();
+                StartCoroutine(pendingReload);
             }
         }
     }
@@ -108,7 +119,8 @@ public class PlayerController : MonoBehaviour
         float clampedAngle = Mathf.Clamp(angle, -maxAngleLimit, maxAngleLimit);
 
         finalDirection = Quaternion.Euler(0, 0, clampedAngle) * Vector2.left;
-        float effectiveMaxPull = maxPullDistance * (1f + (UpgradeManager.Instance.EnginePowerLevel - 1) * 0.85f);
+        float universeScale = UniverseManager.Instance != null ? UniverseManager.Instance.CurrentScale : 1f;
+        float effectiveMaxPull = maxPullDistance * universeScale * (1f + (UpgradeManager.Instance.EnginePowerLevel - 1) * 0.85f);
         finalForce = Mathf.Clamp(dragVector.magnitude, 0, effectiveMaxPull);
 
         if (currentShip != null)
@@ -127,9 +139,19 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    private void CancelPendingReload()
+    {
+        if (pendingReload != null)
+        {
+            StopCoroutine(pendingReload);
+            pendingReload = null;
+        }
+    }
+
     private System.Collections.IEnumerator ReloadShipDelayed()
     {
         yield return new WaitForSeconds(RELOAD_DELAY);
+        pendingReload = null;
         ReloadShip();
     }
 

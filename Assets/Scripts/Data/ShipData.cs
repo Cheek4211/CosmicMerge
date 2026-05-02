@@ -8,8 +8,8 @@ public class ShipData : ScriptableObject
     public int level;
 
     [Header("Visual Settings")]
-    public Sprite shipSprite;   // 우주선 이미지
-    public float scale = 1f;  // 우주선 크기
+    public Sprite shipSprite;
+    public float scale = 1f;
 
 
     [Header("Merge Settings")]
